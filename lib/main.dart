@@ -43,6 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late Web3Client ethClient;
   bool data = false;
   int myAmount = 0;
+  late String txHash;
 
   final myAddress = "0xAAbadb8B44730d345a254eE1130b1827010E37f7";
 
@@ -60,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<DeployedContract> loadContract() async {
     String abi = await rootBundle.loadString("assets/abi.json");
-    String contractAddress = "0xae2e19bC49774904b6caA028a82D1388b3e82f91";
+    String contractAddress = "0x157B71b7497e46CC182642Aa01BEEFF6c31cDacB";
 
     final contract = DeployedContract(ContractAbi.fromJson(abi, "PKCoins"),
         EthereumAddress.fromHex(contractAddress));
@@ -86,6 +87,41 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   var value;
+
+  Future<String> submit(String functionName, List<dynamic> args) async {
+    EthPrivateKey credentials = EthPrivateKey.fromHex(
+        "f7f7591056377fa64794d4a2534b363e0461483017ff6339f5f243b26bf4e489");
+
+    DeployedContract contract = await loadContract();
+    final ethFunction = contract.function(functionName);
+    final result = await ethClient.sendTransaction(
+      credentials,
+      Transaction.callContract(
+          contract: contract, function: ethFunction, parameters: args),
+    );
+    return result;
+  }
+
+  Future<Type> sendCoin() async {
+    var bigAmount = BigInt.from(myAmount);
+
+    var response = await submit("depositBalance", [bigAmount]);
+    print("Deposited");
+    txHash = response;
+    setState(() {});
+    return Response;
+  }
+
+  Future<String> withdrawCoin() async {
+    var bigAmount = BigInt.from(myAmount);
+
+    var response = await submit("withdrawBalance", [bigAmount]);
+    print("Withdrawn");
+    txHash = response;
+    setState(() {});
+    return response;
+  }
+
   @override
   Widget build(BuildContext context) {
     var _value;
@@ -105,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
               "BALANCE".text.gray700.xl2.semiBold.makeCentered(),
               10.heightBox,
               data
-                  ? "\$1".text.bold.xl6.makeCentered()
+                  ? "\$$myData".text.bold.xl6.makeCentered().shimmer()
                   : CircularProgressIndicator().centered()
             ]))
                 .p16
@@ -127,14 +163,14 @@ class _MyHomePageState extends State<MyHomePage> {
             HStack(
               [
                 FlatButton.icon(
-                        onPressed: () {},
+                        onPressed: () => getBalance(myAddress),
                         color: Colors.green,
                         shape: Vx.roundedSm,
                         icon: Icon(Icons.refresh, color: Colors.white),
                         label: "REFRESH".text.white.make())
                     .h(40),
                 FlatButton.icon(
-                        onPressed: () {},
+                        onPressed: () => sendCoin(),
                         color: Colors.black45,
                         shape: Vx.roundedSm,
                         icon: Icon(Icons.call_made_outlined,
@@ -142,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         label: "DEPOSIT".text.white.make())
                     .h(40),
                 FlatButton.icon(
-                        onPressed: () {},
+                        onPressed: () => withdrawCoin(),
                         color: Colors.black45,
                         shape: Vx.roundedSm,
                         icon: Icon(Icons.call_received_outlined,
@@ -152,7 +188,9 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
               alignment: MainAxisAlignment.spaceAround,
               axisSize: MainAxisSize.max,
-            ).p16()
+            ).p16(),
+            // ignore: unnecessary_null_comparison
+            if (txHash != null) txHash.text.black.makeCentered().p16()
           ])
         ]));
   }
